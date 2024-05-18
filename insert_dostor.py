@@ -58,7 +58,7 @@ def translate(object):
 
 
 # clear data
-client.indices.delete(index="dostor")
+# client.indices.delete(index="dostor")
 
 
 client.indices.create(index="dostor", body=index_settings)
