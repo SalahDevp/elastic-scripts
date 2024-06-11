@@ -15,7 +15,7 @@ db_conn = psycopg2.connect(
 
 es_client = Elasticsearch(
     "https://localhost:9200",
-    basic_auth=("elastic", "gRakNDvDTcg+puCVov5W"),
+    basic_auth=("elastic", os.environ.get("ES_PASSWORD")),
     verify_certs=False,
 )
 
@@ -54,15 +54,23 @@ mappings = {
 }
 index_settings["mappings"] = mappings
 es_client.indices.delete(index="laws")
-es_client.indices.create(index="laws", ignore=400, body=index_settings)
+es_client.indices.create(index="laws", body=index_settings)
 
 cur = db_conn.cursor()
+cur2 = db_conn.cursor()
 
 
 def generate_laws_data():
     cur.execute("SELECT * FROM laws;")
     row = cur.fetchone()
     while row:
+        journal_year = row[3].year
+        journal_num = row[4]
+        cur2.execute(
+            f"SELECT link FROM official_newspaper WHERE year='{journal_year}' AND number = '{journal_num}';"
+        )
+        journal_row = cur2.fetchone()
+
         yield {
             "_index": "laws",
             "_id": row[0],
@@ -78,6 +86,9 @@ def generate_laws_data():
                 "field": row[9],
                 "long_content": row[10],
                 "page_fixed": row[11],
+                "journal_link": (
+                    f"{journal_row[0]}#page={row[5]}" if journal_row else ""
+                ),
             },
         }
         row = cur.fetchone()
